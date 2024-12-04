@@ -21,6 +21,13 @@ fn main() -> Result<()> {
             }
             filter.save(args.filter_file).context("Saving filter")?;
         }
+
+        Command::Query { source } => {
+            let filter = BloomFilter::load(args.filter_file)?;
+            for line in source.open().lines() {
+                println!("{}", filter.contains(&line?));
+            }
+        }
     }
 
     Ok(())
@@ -40,6 +47,12 @@ enum Command {
         /// How many items are expted to be stored.
         #[arg(long, default_value = "400000000")]
         num_items: usize,
+    },
+
+    Query {
+        /// Entries to evaluate, one per line.
+        #[arg()]
+        source: Option<PathBuf>,
     },
 }
 
@@ -76,12 +89,20 @@ impl DefaultToStdin for Option<PathBuf> {
 
 trait FilterStorage {
     fn save(&self, path: PathBuf) -> Result<()>;
+    fn load(path: PathBuf) -> Result<Box<Self>>;
 }
 
 impl FilterStorage for BloomFilter {
     fn save(&self, path: PathBuf) -> Result<()> {
         serde_json::to_writer(File::create(path)?, self)?;
         Ok(())
+    }
+
+    fn load(path: PathBuf) -> Result<Box<Self>> {
+        let file = File::open(path).context("Reading filter")?;
+        let filter: BloomFilter =
+            serde_json::from_reader(file).context("Decoding filter file content")?;
+        Ok(Box::new(filter))
     }
 }
 
