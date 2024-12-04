@@ -1,9 +1,14 @@
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use fastbloom::BloomFilter;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
+use std::io::BufRead;
+
+mod args;
+mod io;
+
+use io::{DefaultToStdin, DirExt, FilterStorage};
+
+use args::{Arguments, Command};
 
 fn main() -> Result<()> {
     let args = Arguments::parse();
@@ -31,91 +36,4 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-#[derive(Subcommand, Debug)]
-enum Command {
-    Build {
-        /// Entries, one per line, to use when building the Bloom filter.
-        #[arg()]
-        source: Option<PathBuf>,
-
-        /// The number of bits of storage for the filter:
-        #[arg(long, default_value = "1024")]
-        num_bits: usize,
-
-        /// How many items are expted to be stored.
-        #[arg(long, default_value = "400000000")]
-        num_items: usize,
-    },
-
-    Query {
-        /// Entries to evaluate, one per line.
-        #[arg()]
-        source: Option<PathBuf>,
-    },
-}
-
-#[derive(Parser, Debug)]
-struct Arguments {
-    #[command(subcommand)]
-    command: Command,
-
-    /// The location of the Bloom filter file.
-    #[arg(
-        short,
-        long,
-        env = "MOL_FILTER",
-        default_value = "model/filter.mobloom"
-    )]
-    filter_file: PathBuf,
-}
-
-trait DefaultToStdin {
-    fn open(&self) -> Box<dyn BufRead>;
-}
-
-impl DefaultToStdin for Option<PathBuf> {
-    fn open(&self) -> Box<dyn BufRead> {
-        match self {
-            None => Box::new(BufReader::new(std::io::stdin())),
-            Some(filename) => {
-                let file = File::open(filename).expect("Cannot open source file");
-                Box::new(BufReader::new(file))
-            }
-        }
-    }
-}
-
-trait FilterStorage {
-    fn save(&self, path: PathBuf) -> Result<()>;
-    fn load(path: PathBuf) -> Result<Box<Self>>;
-}
-
-impl FilterStorage for BloomFilter {
-    fn save(&self, path: PathBuf) -> Result<()> {
-        serde_json::to_writer(File::create(path)?, self)?;
-        Ok(())
-    }
-
-    fn load(path: PathBuf) -> Result<Box<Self>> {
-        let file = File::open(path).context("Reading filter")?;
-        let filter: BloomFilter =
-            serde_json::from_reader(file).context("Decoding filter file content")?;
-        Ok(Box::new(filter))
-    }
-}
-
-trait DirExt {
-    fn mk_parent_dir(&self) -> Result<()>;
-}
-
-impl DirExt for PathBuf {
-    fn mk_parent_dir(&self) -> Result<()> {
-        match self.parent() {
-            None => Ok(()), // Top of the file system, nothing to do
-            Some(p) if std::fs::exists(p).unwrap_or(false) => Ok(()), // Parent exists, nothing to do
-            Some(p) => std::fs::create_dir_all(p).context("Creating output path"),
-        }
-    }
 }
