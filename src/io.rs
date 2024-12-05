@@ -27,14 +27,17 @@ pub trait FilterStorage {
 
 impl FilterStorage for BloomFilter {
     fn save(&self, path: PathBuf) -> Result<()> {
-        serde_json::to_writer(File::create(path)?, self)?;
+        let file = File::create(path).context("Creating filter file")?;
+        bincode::serialize_into(file, self).context("Saving filter file")?;
+        // serde_json::to_writer(File::create(path)?, self)?;
         Ok(())
     }
 
     fn load(path: PathBuf) -> Result<Box<Self>> {
-        let file = File::open(path).context("Reading filter")?;
-        let filter: BloomFilter =
-            serde_json::from_reader(file).context("Decoding filter file content")?;
+        let file = File::open(path).context("Opening filter")?;
+        let filter: BloomFilter = bincode::deserialize_from(file).context("Reading filter file")?;
+        // let filter: BloomFilter =
+        //     serde_json::from_reader(file).context("Decoding filter file content")?;
         Ok(Box::new(filter))
     }
 }
