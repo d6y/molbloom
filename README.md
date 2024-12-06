@@ -1,6 +1,6 @@
 # Molbloom in Rust
 
-Fast look-up of molecules using SureChEMBL. 
+Fast look-up of molecules. 
 
 ## Disclaimer of Warranty 
 
