@@ -24,7 +24,7 @@ false
 
 Or you can give the program a file, one string per line.
 
-To build the filter, asusming you have the data (see this [blog post for an example]()), you can construct a new filter targetting a 1% false positive rate with:
+To build the filter, asusming you have the data (see this [blog post for an example](https://r.dallaway.com/posts/fast-molecule-patent-checking)), you can construct a new filter targetting a 1% false positive rate with:
 
 ```
 /target/release/molbloom -f model/surechembl_smiles_2024-12-05.bin \ 
